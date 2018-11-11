@@ -6,8 +6,8 @@
 #include <ESP8266WebServer.h>
 
 //Global constants
-const char* MY_WIFI_SSID = "iprotectmykids";
-const char* MY_WIFI_PASSWORD = "4905ndugu";
+const char* MY_WIFI_SSID = "your ssid";
+const char* MY_WIFI_PASSWORD = "your password";
 const IPAddress MY_IP_ADDRESS(192,168,1,201); 
 const IPAddress MY_GATEWAY(192,168,1,1);
 const IPAddress MY_SUBNET(255,255,255,0);
@@ -29,6 +29,7 @@ const uint16_t WWW_PORT = 9675;
 ESP8266WebServer server(WWW_PORT);
 
 void setup() {
+  initSecureVariables(); //found in SecureVariables.ino redefines MY_WIFI_SSID and MY_WIFI_PASSWORD
   initPins();
   initDisplay();
   initWifi();  
