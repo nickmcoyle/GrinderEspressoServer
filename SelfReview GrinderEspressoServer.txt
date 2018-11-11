@@ -1,0 +1,25 @@
+General Observations
+1. Make CONSTANTS: ssid and password of the wifi, ip address, gateway, devices pin numbers, etc
+2. Unclear what code does what, IPAddress is mixed with WebServer code
+3. Make methods for what you are doing using expressive names so it is easier to debug
+4. Change the Serial.print debugging either to print on the lcd or remove it altogether
+5. Find better way to make the html String because it is impossible to debug or even change
+6. Do away with the jQuery and all the libraries I imported, its just a simple page with 1 button do I need all this bloat?
+7. You have almost no documentation and the code isn't self documenting, so creates a problem
+
+Specific Changes Advised:
+make time format method and call it separately, this code should not be in the refreshDisplay method
+also bugs with current code
+so simple to fix
+if hour == 0 then hour = 12
+if hour > 12 then hour -= 12
+thats all I need
+
+make a main loop
+put all logic for the lcd into a method called display() and call this from the main loop
+make a method call determineState() and call this from main loop
+
+
+put all logic for checking the button presses into a method called checkButtonPress() and call from determineState()
+put all logic for checking timer into a method called checkTimer() and call from determineState()
+put all logic for the relay state into a method called determineRelayState() and call from determineState()
