@@ -1,81 +1,110 @@
-#include "NTPTime.h"
 #include "Display.h"
-#include "OTAUpdate.h"
-#include "TemperatureSensing.h"
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
+#include "NTPTime.h"
+#include "OTAUpdate.h"
+#include "TemperatureSensing.h"
 
 //Global constants
-const char* MY_WIFI_SSID = "your ssid";
-const char* MY_WIFI_PASSWORD = "your password";
-const IPAddress MY_IP_ADDRESS(192,168,1,201); 
+const char* MY_WIFI_SSID = "";
+const char* MY_WIFI_PASSWORD = "";
+const IPAddress MY_IP_ADDRESS(192,168,1,249); 
 const IPAddress MY_GATEWAY(192,168,1,1);
 const IPAddress MY_SUBNET(255,255,255,0);
+const IPAddress MY_DNS(192,168,1,1);
 const int LED_PIN = D5;
 const int RELAY_PIN = D7;
-const unsigned long REFRESH_INTERVAL = 2000; // ms
-const uint32_t RUNTIME_LIMIT = 3600; //seconds in 1 hour
+const unsigned long RUNTIME_LIMIT = 60*60*1000;
+const uint16_t WWW_PORT = 9675;
 
 //Global variables
-NTPTime myTime("81.94.123.17", -8, true);
+NTPTime myTime("pool.ntp.org", -8*3600, true);
 float Temperature = 0;
 unsigned long PowerOnTime = 0;
 static unsigned long LastRefreshDisplay = 0;
 static unsigned long LastRefreshTime = 0;
+unsigned long DST_CHECK_INTERVAL = 10*1000;
+unsigned long currentMillis = 0;
 String WebSite, Javascript, XML;
-const char* WWW_USERNAME = "coffee"; //for url auth
-const char* WWW_PASSWORD = "1234"; //for url auth
-const uint16_t WWW_PORT = 9675;
+
 ESP8266WebServer server(WWW_PORT);
 
 void setup() {
+  Serial.begin(115200);
+  Serial.println("Serial begin");
   initSecureVariables(); //found in SecureVariables.ino redefines MY_WIFI_SSID and MY_WIFI_PASSWORD
   initPins();
   initDisplay();
   initWifi();  
   initWebServer();  
   initOTA();   
-  initTemperatureSensor();
-  myTime.updateTime();
+  initTemperatureSensor();  
+  currentMillis = millis();
+  LastRefreshDisplay = millis();
+  LastRefreshTime = millis();
+  myTime.begin();    
 }
 
 void loop() {
   server.handleClient();
-  ArduinoOTA.handle();  
-  checkSafety();
+  //ArduinoOTA.handle();  
+  checkSafety();  
   
-  //refresh display and get temperature reading every 2 seconds
-  if(millis() - LastRefreshDisplay >= REFRESH_INTERVAL)
+  //refresh display and get temperature reading from sensor every 2 seconds
+  if(millis() - LastRefreshDisplay >= 2*1000)
   {
-    LastRefreshDisplay += REFRESH_INTERVAL;
+    LastRefreshDisplay = millis();
     refreshDisplay(); 
-    updateTemperature();  
+    updateTemperature();     
   }  
   
-  //refresh the time every 20 seconds
-  if(millis() - LastRefreshTime >= 20000)
-  {
-    LastRefreshTime += REFRESH_INTERVAL;
-    myTime.updateTime();
+  //refresh the time
+  if(millis() - LastRefreshTime >= 10*1000)
+  {    
+    LastRefreshTime = millis();    
+    Serial.print("Raw time is: ");
+    Serial.println(myTime.getRawTime());
+    Serial.print("Formatted time is: ");
+    Serial.println(myTime.getTimeFormatted() + myTime.getAmPm());
+   
+    Serial.println("");
   }
+
+/*
+  //wait 30 seconds to check for DST
+  if(millis() - currentMillis >= DST_CHECK_INTERVAL) {
+    currentMillis = millis();    
+    DST_CHECK_INTERVAL += 60*1000;
+    myTime.checkDST();
+  }
+  */
 }
 
 /**
  * A method to start the wifi connection to our access point
  */
 void initWifi() {
-  //As a solution I put
-  //in the beginning of setup() and lo-behold!! Crashes no more! 
-  WiFi.persistent(false);
   
   // Connect to WiFi network
   display.clearDisplay();
   display.setCursor(0,0);
   display.println("Connecting to:");
   display.println(MY_WIFI_SSID);
- 
-  WiFi.config(MY_IP_ADDRESS, MY_GATEWAY, MY_SUBNET);
+  display.display();
+  
+  WiFi.config(MY_IP_ADDRESS, MY_GATEWAY, MY_SUBNET, MY_DNS);  
+  WiFi.mode(WIFI_STA);
   WiFi.begin(MY_WIFI_SSID, MY_WIFI_PASSWORD);
+  
+  while ( WiFi.status() != WL_CONNECTED ) {
+    delay ( 100 );
+    Serial.print ( "." );
+    display.print(".");
+    display.display();
+  }
+  Serial.println("");
+  Serial.println("Wifi connected");
+  Serial.println("");
   
   display.clearDisplay();
   display.setCursor(0,0);
@@ -91,37 +120,14 @@ void initPins() {
 }
 
 /**
-* A method to calculate the amount of time the relay has been on
+* A method to calculate the amount of time the relay has been on. Returns milliseconds.
 **/
 unsigned long getRuntime() {
   unsigned long runTime = 0;
   if (getRelayState() == 1) {
     runTime = millis() - PowerOnTime;
-    runTime /= 1000;  
-  }  
-     
-  return runTime;
-}
-
-/**
- * A method to length of time the relay has been on and format it for display
- */
-String formatRuntime(unsigned long runTime) {
-  String timeStr = "--";
-  byte hh, mm, ss;
-  if(runTime > 0) {
-    hh = runTime / 3600;
-    mm = (runTime - (hh*3600)) / 60;
-    ss = (runTime - (hh * 3600) - (mm * 60));
-    if (hh < 10)timeStr += "0";
-    timeStr += (String)hh + ":";
-    if (mm < 10)timeStr += "0";
-    timeStr += (String)mm + ":";
-    if (ss < 10)timeStr += "0";
-    timeStr += (String)ss;
   }
-
-  return timeStr;
+  return runTime;
 }
 
 /**
@@ -159,7 +165,7 @@ void refreshDisplay() {
   display.print((char)247);
   display.print("F"); 
   display.setTextSize(2); 
-  display.print('\n');    
+  display.print('\n');  
   display.print(myTime.getTimeFormatted());
   display.setTextSize(1);
   display.print(myTime.getAmPm());
@@ -198,9 +204,14 @@ String getRelayStatus() {
 /**
  * A method to turn the relay and LED off/on
  */
-void togglePower() {
-  PowerOnTime = millis();  
+void togglePower() {    
   digitalWrite(RELAY_PIN, !getRelayState());
   digitalWrite(LED_PIN, !getLEDState());
   server.send(200, "text/plain", "Okay");
+  //if the coffee machine is on, then reset the run timer, else it should be 0
+  if(getRelayState() == 1) {
+    PowerOnTime = millis();
+  } else {
+    PowerOnTime = 0;
+  }
 }

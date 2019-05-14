@@ -94,7 +94,7 @@ const char* websiteText = MULTI_LINE_STRING(
           xmlHttp.onreadystatechange=handleServerResponse;
           xmlHttp.send(null);
         }
-        setTimeout('process()',1000);
+        setTimeout('process()',2000);
       }
     
       function handleServerResponse() {
@@ -102,13 +102,12 @@ const char* websiteText = MULTI_LINE_STRING(
           
         } else if (xmlHttp.readyState == 4 && xmlHttp.status == 200) {
           document.getElementById('loading').innerHTML = '';
-          xmlResponse=xmlHttp.responseXML;
-          xmldoc = xmlResponse.getElementsByTagName('temp');
+          xmlResponse=xmlHttp.responseXML;          
           temp = xmlHttp.responseXML.getElementsByTagName('temp')[0].firstChild.nodeValue;
           runtime = xmlHttp.responseXML.getElementsByTagName('runtime')[0].firstChild.nodeValue;
-          pinStatus = xmlHttp.responseXML.getElementsByTagName('pinStatus')[0].firstChild.nodeValue;
+          pinStatus = xmlHttp.responseXML.getElementsByTagName('pinStatus')[0].firstChild.nodeValue;          
           document.getElementById('runtime').innerHTML=runtime+' seconds';
-          document.getElementById('temp').innerHTML=temp;
+          document.getElementById('temp').innerHTML=temp;          
           document.getElementById('pinStatus').innerHTML=pinStatus;
           if(pinStatus == 'on') { 
             PowerOn = true; 
@@ -167,13 +166,13 @@ void buildXML() {
   XML = "<?xml version='1.0'?>";
   XML += "<response>";
   XML += "<runtime>";
-  XML += getRuntime();
+  XML += "0";//getRuntime();
   XML += "</runtime>";
   XML += "<temp>";
   XML += getTemperature();
   XML += "</temp>";
   XML += "<pinStatus>";
   XML += getRelayStatus();
-  XML += "</pinStatus>";
+  XML += "</pinStatus>";  
   XML += "</response>";
 }
